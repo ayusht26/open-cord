@@ -1,4 +1,4 @@
-# OpenCord💻
+# OpenCord
 
 **Open-source alternative to Discord — community-first, privacy-respecting, self-hostable communication for everyone.**
 
