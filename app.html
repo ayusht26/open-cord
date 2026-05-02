@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><script>(function(){
+  function makeStore(){var data={};var api={getItem:function(k){return Object.prototype.hasOwnProperty.call(data,k)?data[k]:null;},setItem:function(k,v){data[k]=String(v);},removeItem:function(k){delete data[k];},clear:function(){data={};},key:function(i){return Object.keys(data)[i]||null;}};Object.defineProperty(api,'length',{get:function(){return Object.keys(data).length;}});return api;}
+  function tryShim(name){var works=false;try{works=!!window[name]&&typeof window[name].getItem==='function';void window[name].length;}catch(_){works=false;}if(works)return;try{Object.defineProperty(window,name,{configurable:true,value:makeStore()});}catch(_){try{window[name]=makeStore();}catch(__){}}};tryShim('localStorage');tryShim('sessionStorage');
+})();</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenCord — Open Source Discord Alternative</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg-server: #08090f;
+      --bg-side:   #0e1018;
+      --bg-chat:   #13161f;
+      --bg-input:  #1c202e;
+      --bg-hover:  #1e2230;
+      --fg:        #eef0f8;
+      --fg-muted:  #5a6280;
+      --border:    #1c2030;
+      --accent:    #5b6ef5;
+      --accent2:   #c77dff;
+      --danger:    #e05555;
+      --success:   #3dc97a;
+      --warn:      #f5a623;
+      --font-main: 'Plus Jakarta Sans', -apple-system, system-ui, sans-serif;
+      --font-display: 'Bricolage Grotesque', sans-serif;
+      --radius-md: 8px;
+      --server-w:  72px;
+      --transition: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg-chat); color:var(--fg); font-family:var(--font-main); height:100vh; overflow:hidden; -webkit-font-smoothing:antialiased; }
+    #root { height:100%; display:flex; }
+    .app-container { display:flex; width:100%; height:100%; overflow:hidden; }
+
+    /* Server Rail */
+    .server-bar { width:var(--server-w); background:var(--bg-server); display:flex; flex-direction:column; align-items:center; padding:12px 0; gap:8px; flex-shrink:0; border-right:1px solid rgba(0,0,0,0.3); overflow-y:auto; }
+    .server-btn { width:48px; height:48px; border-radius:50%; background:var(--bg-side); display:flex; align-items:center; justify-content:center; cursor:pointer; transition:var(--transition); position:relative; color:var(--fg-muted); overflow:hidden; flex-shrink:0; font-family:var(--font-display); font-weight:700; }
+    .server-btn img { width:100%; height:100%; object-fit:cover; }
+    .server-btn:hover, .server-btn.active { border-radius:16px; }
+    .server-btn.active { box-shadow:0 0 0 2px var(--accent); }
+    .server-btn::after { content:''; position:absolute; left:-12px; top:20px; bottom:20px; width:4px; background:white; border-radius:0 4px 4px 0; opacity:0; transition:var(--transition); }
+    .server-btn.active::after { opacity:1; top:10px; bottom:10px; }
+    .server-divider { width:32px; height:1px; background:var(--border); margin:2px 0; flex-shrink:0; }
+
+    /* Sidebar */
+    .sidebar { background:var(--bg-side); display:flex; flex-direction:column; overflow:hidden; flex-shrink:0; }
+    .resizer { width:4px; cursor:col-resize; transition:background 0.2s; z-index:10; flex-shrink:0; }
+    .resizer:hover, .resizer.dragging { background:var(--accent); }
+    .header-panel { height:48px; padding:0 16px; display:flex; align-items:center; justify-content:space-between; background:rgba(0,0,0,0.15); border-bottom:1px solid var(--border); font-weight:700; font-size:15px; flex-shrink:0; font-family:var(--font-display); letter-spacing:-0.02em; }
+    .scrollable { flex:1; overflow-y:auto; padding:12px 8px; }
+    .item-row { padding:8px 10px; border-radius:6px; display:flex; align-items:center; gap:10px; cursor:pointer; color:var(--fg-muted); transition:var(--transition); font-size:14px; margin-bottom:2px; position:relative; }
+    .item-row:hover { background:var(--bg-hover); color:var(--fg); }
+    .item-row.active { background:rgba(255,255,255,0.07); color:var(--fg); }
+
+    /* User panel at bottom */
+    .user-panel { height:52px; background:rgba(0,0,0,0.2); border-top:1px solid var(--border); display:flex; align-items:center; padding:0 8px; gap:8px; flex-shrink:0; cursor:pointer; transition:var(--transition); }
+    .user-panel:hover { background:rgba(0,0,0,0.3); }
+    .user-panel-avatar { width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; position:relative; }
+    .user-panel-avatar img { width:100%; height:100%; object-fit:cover; }
+    .status-dot { position:absolute; bottom:0; right:0; width:10px; height:10px; border-radius:50%; background:var(--success); border:2px solid var(--bg-side); }
+    .user-panel-info { flex:1; min-width:0; }
+    .user-panel-name { font-size:13px; font-weight:600; color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:var(--font-display); letter-spacing:-0.01em; }
+    .user-panel-tag { font-size:11px; color:var(--fg-muted); }
+    .user-panel-actions { display:flex; gap:4px; }
+    .icon-btn { width:28px; height:28px; border-radius:4px; display:flex; align-items:center; justify-content:center; color:var(--fg-muted); cursor:pointer; transition:var(--transition); }
+    .icon-btn:hover { background:var(--bg-hover); color:var(--fg); }
+
+    /* Chat */
+    .main-chat { flex:1; display:flex; flex-direction:column; background:var(--bg-chat); position:relative; min-width:0; }
+    .message-list { flex:1; overflow-y:auto; padding:24px 16px; display:flex; flex-direction:column; gap:2px; scroll-behavior:smooth; }
+    .message-wrap { display:flex; gap:16px; position:relative; padding:4px 8px; border-radius:6px; transition:background 0.15s; }
+    .message-wrap:hover { background:rgba(0,0,0,0.08); }
+    .message-wrap.grouped { margin-top: -6px; }
+    .message-wrap.grouped .msg-avatar { visibility: hidden; }
+    .message-wrap.grouped .msg-meta { display: none; }
+    
+    .msg-avatar { width:40px; height:40px; border-radius:50%; flex-shrink:0; overflow:hidden; cursor:pointer; transition:var(--transition); box-shadow:0 0 0 0 rgba(91,110,245,0); }
+    .msg-avatar:hover { transform:scale(1.08); box-shadow:0 0 0 2px rgba(91,110,245,0.5); }
+    .msg-avatar img { width:100%; height:100%; object-fit:cover; }
+    .msg-content { flex:1; min-width:0; }
+    .msg-meta { display:flex; align-items:baseline; gap:8px; margin-bottom:2px; }
+    .msg-author { font-weight:700; font-size:14.5px; cursor:pointer; transition:var(--transition); font-family:var(--font-display); letter-spacing:-0.02em; }
+    .msg-author:hover { text-decoration:underline; }
+    .msg-time { font-size:11px; color:var(--fg-muted); }
+    .msg-edited { font-size:11px; color:var(--fg-muted); font-style:italic; }
+    .msg-text { font-size:15px; line-height:1.55; color:rgba(238,240,248,0.85); white-space:pre-wrap; word-wrap:break-word; }
+    .msg-own .msg-author { color:var(--accent2); }
+    .msg-actions { position:absolute; top:-14px; right:16px; background:var(--bg-side); border:1px solid var(--border); border-radius:8px; display:none; padding:3px; box-shadow:0 4px 20px rgba(0,0,0,0.5); z-index:5; }
+    .message-wrap:hover .msg-actions { display:flex; }
+    .action-btn { width:30px; height:30px; display:flex; align-items:center; justify-content:center; cursor:pointer; border-radius:4px; color:var(--fg-muted); transition:var(--transition); }
+    .action-btn:hover { background:var(--bg-hover); color:var(--fg); }
+    .action-btn.danger:hover { color:var(--danger); background:rgba(224,85,85,0.1); }
+    
+    .reactions { display:flex; gap:6px; margin-top:6px; overflow-x:auto; flex-wrap:nowrap; }
+    .reaction-pill { background:var(--bg-input); border:1px solid var(--border); padding:3px 9px; border-radius:10px; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all var(--transition); }
+    .reaction-pill:hover { border-color:var(--accent); background:rgba(91,110,245,0.08); transform:translateY(-2px) scale(1.08); }
+    .reaction-pill.mine { background:rgba(91,110,245,0.15); border-color:var(--accent); }
+    .reaction-count { font-size:12px; color:var(--fg-muted); font-weight:600; }
+    .edit-input { width:100%; background:var(--bg-input); border:1px solid var(--accent); padding:8px 12px; border-radius:6px; color:var(--fg); font-family:inherit; font-size:15px; outline:none; margin-top:4px; }
+    .edit-hint { font-size:11px; color:var(--fg-muted); margin-top:4px; }
+
+    /* Input */
+    .input-container { padding:0 16px 20px; flex-shrink:0; position:relative; }
+    .input-bar { background:var(--bg-input); border-radius:var(--radius-md); padding:4px 16px; display:flex; align-items:center; gap:12px; min-height:48px; transition:box-shadow 0.2s; }
+    .input-bar:focus-within { box-shadow:0 0 0 1px rgba(91,110,245,0.3); }
+    .input-field { flex:1; background:transparent; border:none; color:var(--fg); font-size:15px; outline:none; padding:10px 0; font-family:inherit; }
+    .input-field::placeholder { color:var(--fg-muted); }
+
+    /* Emoji/reaction picker */
+    .emoji-picker { position:absolute; bottom:80px; right:16px; width:360px; background:var(--bg-side); border:1px solid var(--border); border-radius:14px; box-shadow:0 16px 60px rgba(0,0,0,0.7); display:flex; flex-direction:column; overflow:hidden; z-index:200; animation:pop 0.2s cubic-bezier(0.18,0.89,0.32,1.28); }
+    @keyframes pop { from { opacity:0; transform:scale(0.88) translateY(16px); } }
+    .picker-tabs { display:flex; border-bottom:1px solid var(--border); }
+    .picker-tab { flex:1; padding:10px; text-align:center; font-size:12px; font-weight:600; color:var(--fg-muted); cursor:pointer; transition:var(--transition); border-bottom:2px solid transparent; margin-bottom:-1px; font-family:var(--font-display); }
+    .picker-tab.active { color:var(--fg); border-bottom-color:var(--accent); }
+    .emoji-search-box { padding:10px 12px; border-bottom:1px solid var(--border); }
+    .emoji-search-box input { width:100%; background:var(--bg-chat); border:none; padding:7px 10px; border-radius:6px; color:var(--fg); font-size:13px; outline:none; font-family:inherit; }
+    .emoji-grid { overflow-y:auto; padding:10px 12px; display:grid; grid-template-columns:repeat(8,1fr); gap:3px; max-height:260px; }
+    .emoji-cell { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; border-radius:6px; transition:var(--transition); }
+    .emoji-cell:hover { background:var(--bg-hover); transform:scale(1.25); }
+    .gif-grid { overflow-y:auto; padding:10px; display:grid; grid-template-columns:1fr 1fr; gap:6px; max-height:280px; }
+    .gif-item { border-radius:8px; overflow:hidden; cursor:pointer; position:relative; aspect-ratio:16/9; transition:var(--transition); }
+    .gif-item:hover { transform:scale(1.03); box-shadow:0 4px 12px rgba(0,0,0,0.5); }
+    .gif-item img { width:100%; height:100%; object-fit:cover; }
+    .gif-label { position:absolute; top:4px; left:4px; background:rgba(0,0,0,0.7); color:white; font-size:9px; font-weight:700; padding:2px 5px; border-radius:3px; }
+
+    /* Reaction popup (inline) */
+    .reaction-popup { position:absolute; bottom:calc(100% + 8px); left:0; background:var(--bg-side); border:1px solid var(--border); border-radius:10px; padding:6px 8px; display:flex; gap:4px; box-shadow:0 8px 24px rgba(0,0,0,0.5); z-index:50; animation:pop 0.15s cubic-bezier(0.18,0.89,0.32,1.28); flex-wrap:wrap; max-width:220px; }
+    .react-option { font-size:20px; cursor:pointer; padding:4px; border-radius:5px; transition:var(--transition); }
+    .react-option:hover { background:var(--bg-hover); transform:scale(1.3); }
+    .react-option:active { animation:emojiPop 0.25s ease; }
+
+    /* Member sidebar */
+    .member-row { padding:6px 8px; border-radius:6px; display:flex; align-items:center; gap:10px; cursor:pointer; transition:var(--transition); margin-bottom:2px; }
+    .member-row:hover { background:var(--bg-hover); }
+    .member-avatar { width:32px; height:32px; border-radius:50%; overflow:hidden; flex-shrink:0; position:relative; }
+    .member-avatar img { width:100%; height:100%; object-fit:cover; }
+    .member-status { position:absolute; bottom:0; right:0; width:10px; height:10px; border-radius:50%; border:2px solid var(--bg-side); }
+    .member-name { font-size:13.5px; font-weight:600; font-family:var(--font-display); letter-spacing:-0.01em; }
+    .member-tag { font-size:11px; color:var(--fg-muted); }
+
+    /* Profile Modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.72); z-index:1000; display:flex; align-items:center; justify-content:center; animation:fadeIn 0.15s; backdrop-filter:blur(6px); }
+    @keyframes fadeIn { from { opacity:0; } }
+    .profile-modal { background:var(--bg-side); border-radius:18px; width:340px; overflow:visible; box-shadow:0 28px 80px rgba(0,0,0,0.8); animation:slideUp 0.25s cubic-bezier(0.18,0.89,0.32,1.28); position:relative; }
+    @keyframes slideUp { from { opacity:0; transform:translateY(24px) scale(0.95); } }
+    .profile-banner { height:100px; width:100%; overflow:hidden; position:relative; border-radius:18px 18px 0 0; }
+    .profile-banner img { width:100%; height:100%; object-fit:cover; }
+    .profile-banner-placeholder { width:100%; height:100%; }
+    .profile-avatar-wrap { position:absolute; bottom:-32px; left:16px; }
+    .profile-modal-avatar { width:64px; height:64px; border-radius:50%; overflow:hidden; border:4px solid var(--bg-side); }
+    .profile-modal-avatar img { width:100%; height:100%; object-fit:cover; }
+    .profile-body { padding:40px 16px 16px; }
+    .profile-name { font-size:18px; font-weight:800; font-family:var(--font-display); letter-spacing:-0.03em; }
+    .profile-handle { font-size:13px; color:var(--fg-muted); margin-bottom:12px; }
+    .profile-bio { font-size:14px; color:rgba(238,240,248,0.7); line-height:1.55; margin-bottom:12px; }
+    .profile-section { font-size:10px; font-weight:700; text-transform:uppercase; color:var(--fg-muted); margin-bottom:6px; letter-spacing:0.08em; }
+    .profile-roles { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    .role-badge { background:rgba(255,255,255,0.07); border:1px solid var(--border); padding:3px 10px; border-radius:20px; font-size:12px; font-weight:500; }
+    .profile-since { font-size:12px; color:var(--fg-muted); }
+    .close-btn { position:absolute; top:8px; right:8px; width:28px; height:28px; border-radius:50%; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; font-size:16px; z-index:10; transition:var(--transition); }
+    .close-btn:hover { background:rgba(0,0,0,0.7); }
+
+    /* My Profile Panel */
+    .my-profile-dropdown { position:fixed; bottom:64px; left:80px; width:320px; background:var(--bg-side); border:1px solid var(--border); border-radius:14px; z-index:200; box-shadow:0 20px 56px rgba(0,0,0,0.7); overflow:visible; animation:slideUp 0.2s cubic-bezier(0.18,0.89,0.32,1.28); }
+    .my-profile-banner { height:80px; position:relative; overflow:hidden; border-radius:14px 14px 0 0; }
+    .my-profile-banner img { width:100%; height:100%; object-fit:cover; }
+    .my-profile-avatar-area { position:absolute; bottom:-20px; left:12px; }
+    .my-profile-avatar-img { width:56px; height:56px; border-radius:50%; overflow:hidden; border:3px solid var(--bg-side); }
+    .my-profile-avatar-img img { width:100%; height:100%; object-fit:cover; }
+    .my-profile-body { padding:28px 16px 12px; }
+    .my-profile-name { font-weight:700; font-size:15px; font-family:var(--font-display); letter-spacing:-0.02em; }
+    .my-profile-tag { font-size:12px; color:var(--fg-muted); margin-bottom:14px; }
+    .profile-field-label { font-size:10.5px; font-weight:700; color:var(--fg-muted); text-transform:uppercase; margin:10px 0 4px; letter-spacing:0.06em; }
+    .profile-input { width:100%; background:var(--bg-input); border:1px solid var(--border); padding:8px 10px; border-radius:7px; color:var(--fg); font-family:inherit; font-size:13px; outline:none; transition:border-color 0.15s; }
+    .profile-input:focus { border-color:var(--accent); }
+    .profile-save-btn { width:100%; padding:9px; background:var(--accent); color:white; border:none; border-radius:7px; font-size:13.5px; font-weight:700; cursor:pointer; margin-top:12px; font-family:var(--font-display); letter-spacing:-0.01em; transition:var(--transition); }
+    .profile-save-btn:hover { filter:brightness(1.15); }
+    .profile-upload-hint { font-size:11px; color:var(--fg-muted); margin-top:4px; }
+
+    /* Section header in sidebar */
+    .section-label { font-size:10px; font-weight:700; color:var(--fg-muted); text-transform:uppercase; padding:0 8px; margin:16px 0 6px; letter-spacing:0.08em; display:flex; align-items:center; justify-content:space-between; }
+
+    /* DM view */
+    .dm-chat { flex:1; display:flex; flex-direction:column; background:var(--bg-chat); position:relative; min-width:0; }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar { width:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.07); border-radius:40px; }
+    ::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,0.13); }
+
+    /* Animations */
+    @keyframes msgIn {
+      0% { opacity: 0; transform: translateY(20px) scale(0.96); }
+      60% { transform: translateY(-4px) scale(1.02); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .msg-new { animation: msgIn 0.35s cubic-bezier(0.18,0.89,0.32,1.28); }
+    
+    @keyframes emojiPop {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.6); }
+      100% { transform: scale(1); }
+    }
+
+    /* Toast */
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--bg-input); border:1px solid var(--border); padding:10px 22px; border-radius:10px; font-size:13px; z-index:999; animation:toastIn 0.2s ease-out; box-shadow:0 8px 28px rgba(0,0,0,0.5); font-weight:500; }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(8px);}to{opacity:1;transform:translateX(-50%) translateY(0);} }
+
+    /* Tab row */
+    .tab-row { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
+    .tab-btn { flex:1; padding:10px; text-align:center; font-size:12px; font-weight:600; color:var(--fg-muted); cursor:pointer; transition:var(--transition); border-bottom:2px solid transparent; font-family:var(--font-display); letter-spacing:0.01em; }
+    .tab-btn.active { color:var(--fg); border-bottom-color:var(--accent); }
+    .tab-btn:hover:not(.active) { color:var(--fg); background:rgba(255,255,255,0.03); }
+
+    /* Typing indicator */
+    .typing-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--fg-muted); animation:typingBounce 1.2s infinite ease-in-out; }
+    @keyframes typingBounce { 0%,80%,100%{transform:scale(0.6);opacity:0.4;} 40%{transform:scale(1);opacity:1;} }
+
+    /* GIF badge */
+    .gif-badge { position:absolute; bottom:0; right:0; background:var(--accent); color:white; font-size:8px; font-weight:800; padding:1px 3px; border-radius:3px; border:1.5px solid var(--bg-side); }
+
+    /* Welcome banner */
+    .welcome-banner { padding:24px 8px 20px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+    .welcome-icon { width:60px; height:60px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--accent2)); display:flex; align-items:center; justify-content:center; margin-bottom:14px; font-size:28px; }
+    .welcome-title { font-size:22px; font-weight:800; margin-bottom:6px; font-family:var(--font-display); letter-spacing:-0.03em; }
+    .welcome-sub { font-size:14px; color:var(--fg-muted); }
+
+    /* Inline GIF message */
+    .msg-gif { border-radius:8px; overflow:hidden; max-width:300px; margin-top:6px; }
+    .msg-gif img { width:100%; display:block; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── Data ───────────────────────────────────────────────────────────────────
+
+const CURRENT_USER = {
+  id: 'me',
+  name: 'You',
+  handle: 'you#0001',
+  bio: 'Just vibing on OpenCord 👾',
+  avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=You',
+  banner: null,
+  status: 'online',
+  roles: ['Member'],
+  since: 'May 2026'
+};
+
+const MEMBERS = [
+  { id: 'felix', name: 'Felix', handle: 'felix#1234', bio: 'Designer & UI nerd. Building cool stuff.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix2', banner: null, status: 'online', roles: ['Admin', 'Designer'], since: 'Jan 2026', color: 'oklch(62% 0.18 262)' },
+  { id: 'aya', name: 'Aya', handle: 'aya#5678', bio: 'Full-stack dev. Open source enthusiast 🌐', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Aya3', banner: null, status: 'online', roles: ['Dev'], since: 'Feb 2026' },
+  { id: 'marco', name: 'Marco', handle: 'marco#9012', bio: 'Gamer & streamer. Coffee addict ☕', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Marco4', banner: null, status: 'idle', roles: ['Member'], since: 'Mar 2026' },
+  { id: 'sarah', name: 'Sarah_Design', handle: 'sarah#3456', bio: 'Product designer at heart.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah5', banner: null, status: 'dnd', roles: ['Designer'], since: 'Apr 2026' },
+  { id: 'kai', name: 'Kai', handle: 'kai#7890', bio: 'Backend wizard 🔮', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Kai6', banner: null, status: 'offline', roles: ['Dev'], since: 'Apr 2026' },
+];
+
+const INITIAL_DMS = {
+  felix: [
+    { id: 'd1', authorId: 'felix', text: 'Hey! How are you liking OpenCord so far?', time: '9:30 PM', reactions: {}, isNew: false },
+    { id: 'd2', authorId: 'me', text: 'Loving it! The UI is super clean.', time: '9:31 PM', reactions: {}, isNew: false },
+  ],
+  aya: [
+    { id: 'd3', authorId: 'aya', text: 'Did you check out the new dev-talk channel?', time: '8:15 PM', reactions: {}, isNew: false },
+  ],
+  marco: [
+    { id: 'd4', authorId: 'marco', text: 'GG! Great session today 🎮', time: '7:50 PM', reactions: { '🔥': 2 }, isNew: false },
+  ],
+  sarah: [],
+  kai: [
+    { id: 'd5', authorId: 'kai', text: 'Check this backend fix I pushed 🔧', time: '6:00 PM', reactions: {}, isNew: false },
+  ],
+};
+
+const INITIAL_MESSAGES = [
+  { id: 1, authorId: 'felix', author: 'Felix', text: 'Draggable panels are live! Try resizing the sidebars 🎉', time: '9:41 PM', reactions: { '🚀': { count: 2, mine: false }, '🔥': { count: 5, mine: false } }, isNew: false },
+  { id: 2, authorId: 'aya', author: 'Aya', text: 'The React engine feels so much smoother. Check the hover menu on messages!', time: '9:42 PM', reactions: { '✨': { count: 3, mine: false } }, isNew: false },
+  { id: 3, authorId: 'me', author: 'You', text: 'Just joined OpenCord. This looks amazing!', time: '9:43 PM', reactions: {}, isNew: false },
+  { id: 4, authorId: 'marco', author: 'Marco', text: 'Welcome! Click any profile pic to see their card 👀', time: '9:44 PM', reactions: { '👋': { count: 4, mine: false } }, isNew: false },
+];
+
+const EMOJI_LIST = ['😀','😂','🥹','😍','🤔','🧐','🤫','🫠','😎','🥳','🤩','😭','😤','🫡','🫶','🙌','👏','👋','🔥','🚀','✨','💯','💎','🌈','🎉','🎊','❤️','💔','⚡','🎨','🎮','🍕','☕','🫠','😈','👀','🤡','🎸','💻','🐧'];
+
+const QUICK_REACTS = ['👍','❤️','😂','😮','😢','🔥','🚀','✨'];
+
+const GIF_DATA = [
+  { id: 'g1', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDhlNWJvNHZ1cGJpZG9ncWF6aWZiYnNwNnBlMHV1bWNxejB2b2xrbiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif', label: 'LOL' },
+  { id: 'g2', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYmZiM3gxZm12NXR5N2w5eTFsYm41dzB5NWI1a3J2NmppenZwNHVxcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26ufdipQqU2lhNA4g/giphy.gif', label: 'Wave' },
+  { id: 'g3', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNGg1NmVmd3l3cTJ6bWtrMjI3ejFkMGk0NmZ2bDloa3BsaHBndjB5byZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0MYt5jPR6QX5pnqM/giphy.gif', label: 'Yes!' },
+  { id: 'g4', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdmhkNWQxNzFxZno0cmtvaHY1ajQzeWFkajBheDRqcDhpc2I3bjFpdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/QMHoU66sBXqqLqYvGO/giphy.gif', label: 'Mind blown' },
+  { id: 'g5', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbmV2amwwNTZkdHllMW0xMzEweHhjanJnMjJ6bW5mNHNkMWliNGlhdCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5GoVLqeAOo6PK/giphy.gif', label: 'Cat typing' },
+  { id: 'g6', url: 'https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbG90d2Jza2p1YXprd3Q3cXFmazZsa3JnYXowc2h3NWJ6cmhnb2t3byZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/xT9IgG50Lg7rusUNDe/giphy.gif', label: 'Wow' },
+];
+
+const STATUS_COLORS = {
+  online: '#3dc97a',
+  idle: '#f5a623',
+  dnd: '#e05555',
+  offline: '#4a5170'
+};
+
+// ─── Icons ───────────────────────────────────────────────────────────────────
+
+const Icon = ({ name, size = 20, color = 'currentColor' }) => {
+  const paths = {
+    hash: <path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" />,
+    home: <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10" />,
+    plus: <path d="M12 5v14M5 12h14" />,
+    smile: <><circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01M9.5 15a3.5 3.5 0 0 0 5 0"/></>,
+    trash: <path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />,
+    edit: <path d="M4 20h4L18.5 9.5a2.12 2.12 0 0 0-3-3L5 17v3M13.5 6.5l3 3" />,
+    voice: <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8" />,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></>,
+    mute: <path d="M1 1l22 22M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23M12 19v4M8 23h8" />,
+    headset: <path d="M3 18v-6a9 9 0 0 1 18 0v6M3 18a3 3 0 0 0 3 3h1a1 1 0 0 0 1-1v-5a1 1 0 0 0-1-1H3M21 18a3 3 0 0 1-3 3h-1a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1h4" />,
+    person: <><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></>,
+    image: <><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></>,
+    x: <path d="M18 6L6 18M6 6l12 12" />,
+    gif: <><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M10 12v-2M10 12h2M14 10v4"/></>,
+    send: <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" />,
+    dm: <><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></>,
+  };
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {paths[name]}
+    </svg>
+  );
+};
+
+// ─── Profile Modal ────────────────────────────────────────────────────────────
+
+const ProfileModal = ({ user, onClose }) => {
+  if (!user) return null;
+  const bgColor = user.color || 'var(--accent)';
+  return (
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="profile-modal">
+        <div className="close-btn" onClick={onClose}>×</div>
+        <div className="profile-banner">
+          {user.banner ? (
+            <img src={user.banner} alt="banner" />
+          ) : (
+            <div className="profile-banner-placeholder" style={{ background: `linear-gradient(135deg, ${bgColor}, oklch(40% 0.12 300))` }} />
+          )}
+          <div className="profile-avatar-wrap">
+            <div className="profile-modal-avatar">
+              <img src={user.avatar} alt={user.name} />
+            </div>
+          </div>
+        </div>
+        <div className="profile-body">
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div>
+              <div className="profile-name">{user.name}</div>
+              <div className="profile-handle">{user.handle}</div>
+            </div>
+            <div style={{ width: 11, height: 11, borderRadius: '50%', background: STATUS_COLORS[user.status] || STATUS_COLORS.offline, marginTop: 4, flexShrink: 0 }} title={user.status} />
+          </div>
+          {user.bio && <div className="profile-bio">{user.bio}</div>}
+          {user.roles?.length > 0 && <>
+            <div className="profile-section">Roles</div>
+            <div className="profile-roles">
+              {user.roles.map(r => <span key={r} className="role-badge">{r}</span>)}
+            </div>
+          </>}
+          <div className="profile-since">Member since {user.since}</div>
+          <button style={{ marginTop: 14, width: '100%', padding: '9px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 8, font: '700 13.5px var(--font-display)', cursor: 'pointer', letterSpacing: '-0.01em' }}>
+            Send Message
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── My Profile Dropdown ──────────────────────────────────────────────────────
+
+const MyProfilePanel = ({ myProfile, onUpdate }) => {
+  const [name, setName] = useState(myProfile.name);
+  const [bio, setBio] = useState(myProfile.bio);
+  const [avatarUrl, setAvatarUrl] = useState(myProfile.avatar);
+  const [bannerUrl, setBannerUrl] = useState(myProfile.banner || '');
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    onUpdate({ ...myProfile, name, bio, avatar: avatarUrl, banner: bannerUrl || null });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1500);
+  };
+
+  return (
+    <div className="my-profile-dropdown">
+      <div className="my-profile-banner" style={{ background: myProfile.banner ? 'none' : 'linear-gradient(135deg, var(--accent), oklch(40% 0.12 300))' }}>
+        {myProfile.banner && <img src={myProfile.banner} alt="banner" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+        <div className="my-profile-avatar-area">
+          <div className="my-profile-avatar-img">
+            <img src={myProfile.avatar} alt="me" />
+          </div>
+        </div>
+      </div>
+      <div className="my-profile-body">
+        <div className="my-profile-name">{myProfile.name}</div>
+        <div className="my-profile-tag">{myProfile.handle}</div>
+
+        <div className="profile-field-label">Display Name</div>
+        <input className="profile-input" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
+
+        <div className="profile-field-label">Bio</div>
+        <input className="profile-input" value={bio} onChange={e => setBio(e.target.value)} placeholder="Tell us about yourself" />
+
+        <div className="profile-field-label">Avatar URL <span style={{ color: 'var(--fg-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(GIFs supported)</span></div>
+        <input className="profile-input" value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." />
+
+        <div className="profile-field-label">Banner URL <span style={{ color: 'var(--fg-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(GIFs supported)</span></div>
+        <input className="profile-input" value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} placeholder="https://..." />
+        <div className="profile-upload-hint">Paste any image or GIF URL for avatar & banner</div>
+
+        <button className="profile-save-btn" onClick={handleSave}>
+          {saved ? '✓ Saved!' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Emoji + GIF Picker ───────────────────────────────────────────────────────
+
+const EmojiGifPicker = ({ onSelectEmoji, onSelectGif }) => {
+  const [tab, setTab] = useState('emoji');
+  const [filter, setFilter] = useState('');
+  const filtered = filter ? EMOJI_LIST.filter(e => e.includes(filter)) : EMOJI_LIST;
+
+  return (
+    <div className="emoji-picker">
+      <div className="picker-tabs">
+        <div className={`picker-tab ${tab === 'emoji' ? 'active' : ''}`} onClick={() => setTab('emoji')}>Emoji</div>
+        <div className={`picker-tab ${tab === 'gif' ? 'active' : ''}`} onClick={() => setTab('gif')}>GIF</div>
+      </div>
+      {tab === 'emoji' ? (
+        <>
+          <div className="emoji-search-box">
+            <input autoFocus placeholder="Search emojis…" value={filter} onChange={e => setFilter(e.target.value)} />
+          </div>
+          <div className="emoji-grid">
+            {filtered.map(e => <div key={e} className="emoji-cell" onClick={() => onSelectEmoji(e)}>{e}</div>)}
+          </div>
+        </>
+      ) : (
+        <div className="gif-grid">
+          {GIF_DATA.map(g => (
+            <div key={g.id} className="gif-item" onClick={() => onSelectGif(g.url)}>
+              <img src={g.url} alt={g.label} loading="lazy" />
+              <div className="gif-label">GIF</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Reaction Popup ───────────────────────────────────────────────────────────
+
+const ReactionPopup = ({ onReact, onClose }) => {
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  return (
+    <div className="reaction-popup" ref={ref}>
+      {QUICK_REACTS.map(e => (
+        <div key={e} className="react-option" onClick={() => { onReact(e); onClose(); }}>{e}</div>
+      ))}
+    </div>
+  );
+};
+
+// ─── Hover Profile Component ──────────────────────────────────────────────────
+
+const HoverProfile = ({ user, position }) => {
+  if (!user) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: position.y,
+        left: position.x,
+        width: 260,
+        background: "var(--bg-side)",
+        borderRadius: 12,
+        padding: 12,
+        zIndex: 999,
+        boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+        pointerEvents: "none"
+      }}
+    >
+      <img src={user.avatar} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover" }} />
+      <div style={{ fontWeight: 700, marginTop: 8, fontFamily: "var(--font-display)" }}>{user.name}</div>
+      <div style={{ fontSize: 12, color: "var(--fg-muted)", marginTop: 4 }}>{user.bio || "No bio available"}</div>
+    </div>
+  );
+};
+
+
+// ─── Message ──────────────────────────────────────────────────────────────────
+
+const Message = ({ msg, prevMsg, onEdit, onDelete, onReact, onViewProfile, onHoverProfile, onLeaveProfile, currentUserId, allMembers }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editVal, setEditVal] = useState(msg.text);
+  const [showReactPopup, setShowReactPopup] = useState(false);
+  
+  const isOwn = msg.authorId === currentUserId;
+  const member = allMembers.find(m => m.id === msg.authorId) || { avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.author}`, name: msg.author };
+
+  const isGrouped = prevMsg && prevMsg.authorId === msg.authorId;
+
+  const handleSave = () => {
+    if (editVal.trim()) onEdit(msg.id, editVal);
+    setIsEditing(false);
+  };
+
+  return (
+    <div className={`message-wrap ${msg.isNew ? 'msg-new' : ''} ${isOwn ? 'msg-own' : ''} ${isGrouped ? 'grouped' : ''}`}>
+      {!isGrouped && (
+        <div className="msg-avatar" 
+             onClick={() => onViewProfile(member)}
+             onMouseEnter={(e) => onHoverProfile && onHoverProfile(member, e)}
+             onMouseLeave={() => onLeaveProfile && onLeaveProfile()}>
+          <img src={member.avatar} alt={member.name} />
+        </div>
+      )}
+      <div className="msg-content">
+        {!isGrouped && (
+          <div className="msg-meta">
+            <span className="msg-author" style={{ color: member.color || (isOwn ? 'var(--accent2)' : 'var(--fg)') }}
+              onClick={() => onViewProfile(member)}
+              onMouseEnter={(e) => onHoverProfile && onHoverProfile(member, e)}
+              onMouseLeave={() => onLeaveProfile && onLeaveProfile()}>
+              {msg.author}
+            </span>
+            <span className="msg-time">{msg.time}</span>
+            {msg.edited && <span className="msg-edited">(edited)</span>}
+          </div>
+        )}
+        
+        {isEditing ? (
+          <>
+            <textarea className="edit-input" style={{ resize: 'vertical', minHeight: 60 }} autoFocus value={editVal}
+              onChange={e => setEditVal(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); } if (e.key === 'Escape') setIsEditing(false); }} />
+            <div className="edit-hint">Enter to save · Escape to cancel</div>
+          </>
+        ) : (
+          <>
+            {msg.gifUrl ? (
+              <>
+                {msg.text && <div className="msg-text">{msg.text}</div>}
+                <div className="msg-gif"><img src={msg.gifUrl} alt="gif" /></div>
+              </>
+            ) : (
+              <div className="msg-text">{msg.text}</div>
+            )}
+          </>
+        )}
+        {Object.keys(msg.reactions).length > 0 && (
+          <div className="reactions">
+            {Object.entries(msg.reactions).map(([emoji, data]) => (
+              <div key={emoji} className={`reaction-pill ${data.mine ? 'mine' : ''}`}
+                onClick={() => onReact(msg.id, emoji)}>
+                <span>{emoji}</span>
+                <span className="reaction-count">{data.count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="msg-actions">
+        <div className="action-btn" title="React" style={{ position: 'relative' }} onClick={e => { e.stopPropagation(); setShowReactPopup(s => !s); }}>
+          <Icon name="smile" size={16} />
+          {showReactPopup && <ReactionPopup onReact={emoji => onReact(msg.id, emoji)} onClose={() => setShowReactPopup(false)} />}
+        </div>
+        {isOwn && <div className="action-btn" title="Edit" onClick={() => setIsEditing(true)}><Icon name="edit" size={16} /></div>}
+        {isOwn && <div className="action-btn danger" title="Delete" onClick={() => onDelete(msg.id)}><Icon name="trash" size={16} /></div>}
+      </div>
+    </div>
+  );
+};
+
+// ─── DM Chat View ─────────────────────────────────────────────────────────────
+
+const DMChat = ({ member, messages, myProfile, onSend, onEdit, onDelete, onReact, onViewProfile, onHoverProfile, onLeaveProfile, allMembers }) => {
+  const [input, setInput] = useState('');
+  const [showEmoji, setShowEmoji] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  const send = (gifUrl) => {
+    if (!input.trim() && !gifUrl) return;
+    const t = new Date();
+    const newMsg = {
+      id: `dm_${Date.now()}`,
+      authorId: 'me',
+      author: myProfile.name,
+      text: gifUrl ? (input.trim() || '') : input.trim(),
+      gifUrl: gifUrl || null,
+      time: `${t.getHours() % 12 || 12}:${String(t.getMinutes()).padStart(2, '0')} ${t.getHours() < 12 ? 'AM' : 'PM'}`,
+      reactions: {},
+      isNew: true,
+    };
+    onSend(newMsg);
+    setInput('');
+    setShowEmoji(false);
+  };
+
+  return (
+    <div className="dm-chat">
+      <header className="header-panel">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+            <img src={member.avatar} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <span>{member.name}</span>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[member.status], flexShrink: 0 }} />
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--fg-muted)' }}>{member.status}</div>
+      </header>
+      <div className="message-list" ref={scrollRef}>
+        <div className="welcome-banner">
+          <div style={{ cursor: 'pointer' }} onClick={() => onViewProfile(member)}>
+            <div style={{ width: 60, height: 60, borderRadius: '50%', overflow: 'hidden', marginBottom: 12 }}>
+              <img src={member.avatar} alt={member.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          </div>
+          <div className="welcome-title">{member.name}</div>
+          <div className="welcome-sub">{member.handle} · {member.bio}</div>
+        </div>
+        {messages.map((m, i) => (
+          <Message key={m.id} msg={m} prevMsg={i > 0 ? messages[i-1] : null} onEdit={onEdit} onDelete={onDelete} onReact={onReact}
+            onViewProfile={onViewProfile} onHoverProfile={onHoverProfile} onLeaveProfile={onLeaveProfile} currentUserId="me" allMembers={allMembers} />
+        ))}
+      </div>
+      <div className="input-container" onClick={() => setShowEmoji(false)}>
+        <div className="input-bar" onClick={e => e.stopPropagation()}>
+          <div style={{ color: 'var(--fg-muted)', cursor: 'pointer', flexShrink: 0 }}><Icon name="plus" size={22} /></div>
+          <input className="input-field" placeholder={`Message ${member.name}`} value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()} />
+          <div style={{ color: showEmoji ? 'var(--accent)' : 'var(--fg-muted)', cursor: 'pointer', transition: '0.2s', flexShrink: 0 }}
+            onClick={e => { e.stopPropagation(); setShowEmoji(s => !s); }}>
+            <Icon name="smile" size={22} />
+          </div>
+        </div>
+        {showEmoji && (
+          <div onClick={e => e.stopPropagation()}>
+            <EmojiGifPicker
+              onSelectEmoji={emoji => { setInput(i => i + emoji); setShowEmoji(false); }}
+              onSelectGif={url => { send(url); }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── App ──────────────────────────────────────────────────────────────────────
+
+const App = () => {
+  const [view, setView] = useState('server');
+  const [activeDM, setActiveDM] = useState(null); // member id
+  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [dmMessages, setDmMessages] = useState(INITIAL_DMS);
+  const [input, setInput] = useState('');
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [sideLeftW, setSideLeftW] = useState(240);
+  const [sideRightW, setSideRightW] = useState(240);
+  const [isDraggingL, setIsDraggingL] = useState(false);
+  const [isDraggingR, setIsDraggingR] = useState(false);
+  const [viewingProfile, setViewingProfile] = useState(null);
+  
+  const [hoverUser, setHoverUser] = useState(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
+
+  const [showMyProfile, setShowMyProfile] = useState(false);
+  const [myProfile, setMyProfile] = useState(CURRENT_USER);
+  const [rightTab, setRightTab] = useState('members');
+  const [toast, setToast] = useState('');
+  const scrollRef = useRef(null);
+  const allMembers = [...MEMBERS, { ...myProfile, id: 'me' }];
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2200); };
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages]);
+
+  // Drag resize
+  useEffect(() => {
+    const move = (e) => {
+      if (isDraggingL) setSideLeftW(Math.max(160, Math.min(450, e.clientX - 72)));
+      if (isDraggingR) setSideRightW(Math.max(160, Math.min(450, window.innerWidth - e.clientX)));
+    };
+    const up = () => { setIsDraggingL(false); setIsDraggingR(false); };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+  }, [isDraggingL, isDraggingR]);
+
+  const sendMessage = (gifUrl) => {
+    if (!input.trim() && !gifUrl) return;
+    const t = new Date();
+    const newMsg = {
+      id: Date.now(),
+      authorId: 'me',
+      author: myProfile.name,
+      text: gifUrl ? (input.trim() || '') : input.trim(),
+      gifUrl: gifUrl || null,
+      time: `${t.getHours() % 12 || 12}:${String(t.getMinutes()).padStart(2, '0')} ${t.getHours() < 12 ? 'AM' : 'PM'}`,
+      reactions: {},
+      isNew: true
+    };
+    setMessages(prev => [...prev, newMsg]);
+    setInput('');
+    setShowEmoji(false);
+  };
+
+  const editMessage = (id, text) => setMessages(prev => prev.map(m => m.id === id ? { ...m, text, edited: true } : m));
+  const deleteMessage = (id) => { setMessages(prev => prev.filter(m => m.id !== id)); showToast('Message deleted'); };
+
+  const reactMessage = (id, emoji) => {
+    setMessages(prev => prev.map(m => {
+      if (m.id !== id) return m;
+      const existing = m.reactions[emoji];
+      if (!existing) return { ...m, reactions: { ...m.reactions, [emoji]: { count: 1, mine: true } } };
+      if (existing.mine) {
+        const newCount = existing.count - 1;
+        if (newCount <= 0) {
+          const { [emoji]: _, ...rest } = m.reactions;
+          return { ...m, reactions: rest };
+        }
+        return { ...m, reactions: { ...m.reactions, [emoji]: { count: newCount, mine: false } } };
+      }
+      return { ...m, reactions: { ...m.reactions, [emoji]: { count: existing.count + 1, mine: true } } };
+    }));
+  };
+
+  const sendDM = (memberId, msg) => {
+    setDmMessages(prev => ({ ...prev, [memberId]: [...(prev[memberId] || []), msg] }));
+  };
+
+  const editDM = (memberId, id, text) => {
+    setDmMessages(prev => ({ ...prev, [memberId]: prev[memberId].map(m => m.id === id ? { ...m, text, edited: true } : m) }));
+  };
+
+  const deleteDM = (memberId, id) => {
+    setDmMessages(prev => ({ ...prev, [memberId]: prev[memberId].filter(m => m.id !== id) }));
+    showToast('Message deleted');
+  };
+
+  const reactDM = (memberId, msgId, emoji) => {
+    setDmMessages(prev => ({
+      ...prev,
+      [memberId]: prev[memberId].map(m => {
+        if (m.id !== msgId) return m;
+        const existing = m.reactions[emoji];
+        if (!existing) return { ...m, reactions: { ...m.reactions, [emoji]: { count: 1, mine: true } } };
+        if (existing.mine) {
+          const newCount = existing.count - 1;
+          if (newCount <= 0) { const { [emoji]: _, ...rest } = m.reactions; return { ...m, reactions: rest }; }
+          return { ...m, reactions: { ...m.reactions, [emoji]: { count: newCount, mine: false } } };
+        }
+        return { ...m, reactions: { ...m.reactions, [emoji]: { count: existing.count + 1, mine: true } } };
+      })
+    }));
+  };
+
+  const handleOpenDM = (member) => {
+    setActiveDM(member.id);
+    setView('dm');
+  };
+
+  const handleHoverProfile = (user, e) => {
+    setHoverUser(user);
+    setHoverPos({ x: e.clientX + 10, y: e.clientY + 10 });
+  };
+
+  const handleLeaveProfile = () => {
+    setHoverUser(null);
+  };
+
+  const onlineMembers = MEMBERS.filter(m => m.status === 'online' || m.status === 'idle');
+  const offlineMembers = MEMBERS.filter(m => m.status === 'offline' || m.status === 'dnd');
+  const activeDMmember = MEMBERS.find(m => m.id === activeDM);
+
+  const isDmView = view === 'dm' && activeDMmember;
+
+  return (
+    <>
+      <div className="app-container" onClick={() => { setShowMyProfile(false); setShowEmoji(false); }}>
+
+        {/* Server Rail */}
+        <nav className="server-bar" onClick={e => e.stopPropagation()}>
+          <div className={`server-btn ${view === 'dm' ? 'active' : ''}`} onClick={() => setView('dm')} title="Home">
+            <Icon name="home" size={22} />
+          </div>
+          <div className="server-divider" />
+          <div className={`server-btn ${view === 'server' ? 'active' : ''}`}
+            onClick={() => setView('server')} title="OpenCord Server"
+            style={{ fontWeight: 800, fontSize: 15, color: 'var(--accent)', background: 'rgba(91,110,245,0.12)' }}>
+            OC
+          </div>
+          <div className="server-btn" style={{ color: 'var(--success)' }} title="Add Server">
+            <Icon name="plus" size={22} />
+          </div>
+        </nav>
+
+        {/* Left Sidebar */}
+        <aside className="sidebar" style={{ width: sideLeftW }} onClick={e => e.stopPropagation()}>
+          <div className="header-panel">
+            <span>{view === 'server' ? '⚡ OpenCord' : 'Direct Messages'}</span>
+          </div>
+          <div className="scrollable">
+            {view === 'server' ? (
+              <>
+                <div className="section-label">Text Channels</div>
+                <div className="item-row active"><Icon name="hash" size={16} /> general-chat</div>
+                <div className="item-row"><Icon name="hash" size={16} /> design-critique</div>
+                <div className="item-row"><Icon name="hash" size={16} /> dev-talk</div>
+                <div className="section-label">Voice</div>
+                <div className="item-row"><Icon name="voice" size={16} /> Co-working 1</div>
+                <div className="item-row"><Icon name="voice" size={16} /> Gaming Lounge</div>
+              </>
+            ) : (
+              <>
+                {MEMBERS.map(m => (
+                  <div key={m.id} className={`item-row ${activeDM === m.id ? 'active' : ''}`}
+                    onClick={() => handleOpenDM(m)}>
+                    <div style={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden' }}>
+                        <img src={m.avatar} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <div style={{ position: 'absolute', bottom: 0, right: 0, width: 9, height: 9, borderRadius: '50%', background: STATUS_COLORS[m.status], border: '1.5px solid var(--bg-side)' }} />
+                    </div>
+                    <span>{m.name}</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* My User Panel */}
+          <div className="user-panel" onClick={(e) => { e.stopPropagation(); setShowMyProfile(p => !p); }}>
+            <div className="user-panel-avatar">
+              <img src={myProfile.avatar} alt="me" />
+              <div className="status-dot" />
+            </div>
+            <div className="user-panel-info">
+              <div className="user-panel-name">{myProfile.name}</div>
+              <div className="user-panel-tag">{myProfile.handle}</div>
+            </div>
+            <div className="user-panel-actions" onClick={e => e.stopPropagation()}>
+              <div className="icon-btn" title="Mute"><Icon name="mute" size={16} /></div>
+              <div className="icon-btn" title="Headset"><Icon name="headset" size={16} /></div>
+              <div className="icon-btn" title="Settings"><Icon name="settings" size={16} /></div>
+            </div>
+          </div>
+        </aside>
+
+        <div className={`resizer ${isDraggingL ? 'dragging' : ''}`} onMouseDown={() => setIsDraggingL(true)} />
+
+        {/* Main content */}
+        {isDmView ? (
+          <DMChat
+            member={activeDMmember}
+            messages={dmMessages[activeDMmember.id] || []}
+            myProfile={myProfile}
+            allMembers={allMembers}
+            onSend={msg => sendDM(activeDMmember.id, msg)}
+            onEdit={(id, text) => editDM(activeDMmember.id, id, text)}
+            onDelete={id => deleteDM(activeDMmember.id, id)}
+            onReact={(msgId, emoji) => reactDM(activeDMmember.id, msgId, emoji)}
+            onViewProfile={m => setViewingProfile(m)}
+            onHoverProfile={handleHoverProfile}
+            onLeaveProfile={handleLeaveProfile}
+          />
+        ) : view === 'dm' ? (
+          // DM home - no conversation selected
+          <div className="main-chat" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 40 }}>💬</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.03em' }}>Your Direct Messages</div>
+            <div style={{ color: 'var(--fg-muted)', fontSize: 14, textAlign: 'center' }}>Select a conversation from the left sidebar</div>
+          </div>
+        ) : (
+          // Server chat
+          <main className="main-chat" onClick={() => setShowEmoji(false)}>
+            <header className="header-panel">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Icon name="hash" size={20} color="var(--fg-muted)" />
+                <span>general-chat</span>
+                <span style={{ fontSize: 12, color: 'var(--fg-muted)', fontWeight: 400 }}>· OpenCord community</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="voice" size={18} color="var(--fg-muted)" />
+                <Icon name="person" size={18} color="var(--fg-muted)" />
+              </div>
+            </header>
+
+            <div className="message-list" ref={scrollRef}>
+              <div className="welcome-banner">
+                <div className="welcome-icon">⚡</div>
+                <div className="welcome-title">Welcome to #general-chat</div>
+                <div className="welcome-sub">This is the start of the #general-chat channel. Say hi!</div>
+              </div>
+              {messages.map((m, i) => (
+                <Message key={m.id} msg={m} prevMsg={i > 0 ? messages[i-1] : null} onEdit={editMessage} onDelete={deleteMessage}
+                  onReact={reactMessage} onViewProfile={setViewingProfile}
+                  onHoverProfile={handleHoverProfile} onLeaveProfile={handleLeaveProfile}
+                  currentUserId="me" allMembers={allMembers} />
+              ))}
+            </div>
+
+            <div className="input-container" onClick={e => e.stopPropagation()}>
+              <div className="input-bar">
+                <div style={{ color: 'var(--fg-muted)', cursor: 'pointer', flexShrink: 0 }}><Icon name="plus" size={22} /></div>
+                <input className="input-field" placeholder="Message #general-chat" value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()} />
+                <div style={{ color: showEmoji ? 'var(--accent)' : 'var(--fg-muted)', cursor: 'pointer', transition: '0.2s', flexShrink: 0 }}
+                  onClick={e => { e.stopPropagation(); setShowEmoji(s => !s); }}>
+                  <Icon name="smile" size={22} />
+                </div>
+              </div>
+              {showEmoji && (
+                <div onClick={e => e.stopPropagation()}>
+                  <EmojiGifPicker
+                    onSelectEmoji={emoji => { setInput(i => i + emoji); setShowEmoji(false); }}
+                    onSelectGif={url => sendMessage(url)}
+                  />
+                </div>
+              )}
+            </div>
+          </main>
+        )}
+
+        <div className={`resizer ${isDraggingR ? 'dragging' : ''}`} onMouseDown={() => setIsDraggingR(true)} />
+
+        {/* Right Sidebar */}
+        <aside className="sidebar" style={{ width: sideRightW }} onClick={e => e.stopPropagation()}>
+          <div className="tab-row">
+            <div className={`tab-btn ${rightTab === 'members' ? 'active' : ''}`} onClick={() => setRightTab('members')}>Members</div>
+            <div className={`tab-btn ${rightTab === 'threads' ? 'active' : ''}`} onClick={() => setRightTab('threads')}>Threads</div>
+          </div>
+          <div className="scrollable">
+            {rightTab === 'members' ? (
+              <>
+                <div className="section-label">Online — {onlineMembers.length + 1}</div>
+                {/* Current user - clicking opens profile card */}
+                <div className="member-row" onClick={() => setViewingProfile({ ...myProfile, id: 'me' })}>
+                  <div className="member-avatar">
+                    <img src={myProfile.avatar} alt={myProfile.name} />
+                    <div className="member-status" style={{ background: STATUS_COLORS.online }} />
+                  </div>
+                  <div>
+                    <div className="member-name" style={{ color: 'var(--accent2)' }}>
+                      {myProfile.name} <span style={{ fontSize: 10, color: 'var(--fg-muted)', fontFamily: 'var(--font-main)', fontWeight: 400 }}>(you)</span>
+                    </div>
+                    <div className="member-tag">{myProfile.handle}</div>
+                  </div>
+                </div>
+                {onlineMembers.map(m => (
+                  <div key={m.id} className="member-row" onClick={() => setViewingProfile(m)}>
+                    <div className="member-avatar">
+                      <img src={m.avatar} alt={m.name} />
+                      <div className="member-status" style={{ background: STATUS_COLORS[m.status] }} />
+                    </div>
+                    <div>
+                      <div className="member-name" style={{ color: m.color }}>{m.name}</div>
+                      <div className="member-tag">{m.status === 'idle' ? '🌙 Idle' : '🟢 Online'}</div>
+                    </div>
+                  </div>
+                ))}
+                <div className="section-label" style={{ marginTop: 16 }}>Offline — {offlineMembers.length}</div>
+                {offlineMembers.map(m => (
+                  <div key={m.id} className="member-row" style={{ opacity: 0.55 }} onClick={() => setViewingProfile(m)}>
+                    <div className="member-avatar">
+                      <img src={m.avatar} alt={m.name} />
+                      <div className="member-status" style={{ background: STATUS_COLORS[m.status] }} />
+                    </div>
+                    <div>
+                      <div className="member-name">{m.name}</div>
+                      <div className="member-tag">{m.status === 'dnd' ? '🔴 Do Not Disturb' : '⚫ Offline'}</div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div style={{ padding: '28px 8px', textAlign: 'center', color: 'var(--fg-muted)', fontSize: 14 }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>🧵</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, marginBottom: 6, letterSpacing: '-0.02em' }}>No active threads</div>
+                Start a thread from any message.
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+
+      {/* Hover Profile Popover */}
+      {hoverUser && <HoverProfile user={hoverUser} position={hoverPos} />}
+
+      {/* My Profile Dropdown */}
+      {showMyProfile && (
+        <div onClick={e => e.stopPropagation()}>
+          <MyProfilePanel myProfile={myProfile} onUpdate={updated => { setMyProfile(updated); showToast('Profile updated ✓'); }} />
+        </div>
+      )}
+
+      {/* Profile View Modal */}
+      {viewingProfile && (
+        <ProfileModal user={viewingProfile} onClose={() => setViewingProfile(null)} />
+      )}
+
+      {/* Toast */}
+      {toast && <div className="toast">{toast}</div>}
+    </>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
